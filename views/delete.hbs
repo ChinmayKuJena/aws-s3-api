@@ -1,0 +1,170 @@
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Delete Object</h3>
+                <p class="card-subtitle">Remove an object from your S3 bucket</p>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-danger">
+                <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <div>
+                    <strong>Warning:</strong> This action is permanent and cannot be undone. Make sure you have the correct object key.
+                </div>
+            </div>
+            
+            <form id="deleteForm" style="margin-top: 24px;">
+                <div class="form-group">
+                    <label class="form-label">Bucket <span class="required">*</span></label>
+                    <select id="bucket" class="form-select" required>
+                        <option value="">Select a bucket...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Object Key <span class="required">*</span></label>
+                    <input type="text" id="key" class="form-input" placeholder="path/to/file.txt" required>
+                    <p class="form-hint">Full path to the object including any folders</p>
+                </div>
+                
+                <button type="submit" class="btn btn-danger btn-lg" id="submitBtn" style="width: 100%;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    Delete Object
+                </button>
+            </form>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p class="loading-text">Deleting object...</p>
+            </div>
+            
+            <div id="success" class="result-box result-success"></div>
+            <div id="error" class="result-box result-error"></div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Delete Guidelines</h3>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <div>
+                    <strong>About deletion:</strong>
+                    <ul style="margin-top: 8px; margin-left: 16px; color: var(--text-secondary);">
+                        <li>Deletion is immediate and permanent</li>
+                        <li>Enter the exact object key including path</li>
+                        <li>No wildcards or patterns supported</li>
+                        <li>Use the Objects page to find exact keys</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div style="margin-top: 24px;">
+                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 12px;">
+                    Need to find the object key? Browse your bucket first:
+                </p>
+                <a href="/objects" class="btn btn-secondary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    Browse Objects
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load buckets
+    async function loadBuckets() {
+        const select = document.getElementById('bucket');
+        
+        try {
+            const response = await fetch('/api/v1/s3/buckets');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                data.data.forEach(bucket => {
+                    const option = document.createElement('option');
+                    option.value = bucket.Name;
+                    option.textContent = bucket.Name;
+                    select.appendChild(option);
+                });
+            }
+        } catch (err) {
+            showNotification('Failed to load buckets: ' + err.message, 'error');
+        }
+    }
+
+    // Form submission
+    document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const bucket = document.getElementById('bucket').value;
+        const key = document.getElementById('key').value;
+        
+        if (!confirm(`Are you sure you want to delete "${key}" from bucket "${bucket}"?\n\nThis action cannot be undone.`)) {
+            return;
+        }
+        
+        const loading = document.getElementById('loading');
+        const success = document.getElementById('success');
+        const error = document.getElementById('error');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        loading.classList.add('show');
+        success.classList.remove('show');
+        error.classList.remove('show');
+        submitBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/v1/s3/object', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bucket, key })
+            });
+            
+            const data = await response.json();
+            
+            loading.classList.remove('show');
+            submitBtn.disabled = false;
+            
+            if (data.success) {
+                success.innerHTML = `
+                    <strong>✓ Object Deleted</strong><br>
+                    <span style="color: var(--text-secondary);">${data.message}</span>
+                `;
+                success.classList.add('show');
+                document.getElementById('key').value = '';
+                showNotification('Object deleted successfully!', 'success');
+            } else {
+                throw new Error(data.message || 'Delete failed');
+            }
+        } catch (err) {
+            loading.classList.remove('show');
+            submitBtn.disabled = false;
+            error.textContent = 'Error: ' + err.message;
+            error.classList.add('show');
+            showNotification('Delete failed: ' + err.message, 'error');
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', loadBuckets);
+</script>

@@ -1,0 +1,203 @@
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Generate Signed URL</h3>
+                <p class="card-subtitle">Create a temporary access link for an S3 object</p>
+            </div>
+        </div>
+        <div class="card-body">
+            <form id="signedUrlForm">
+                <div class="form-group">
+                    <label class="form-label">Bucket <span class="required">*</span></label>
+                    <select id="bucket" class="form-select" required>
+                        <option value="">Select a bucket...</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Object Key <span class="required">*</span></label>
+                    <input type="text" id="key" class="form-input" placeholder="path/to/file.txt" required>
+                    <p class="form-hint">Full path to the object</p>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width: 100%;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        style="width: 18px; height: 18px;">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    Generate URL
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p class="loading-text">Generating URL...</p>
+            </div>
+
+            <div id="result" class="result-box result-info" style="display: none;">
+                <strong style="display: block; margin-bottom: 12px;">✓ Signed URL Generated</strong>
+                <div class="url-display" id="urlDisplay"></div>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                    <button class="btn btn-primary" onclick="copyUrl()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            style="width: 16px; height: 16px;">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                        </svg>
+                        Copy URL
+                    </button>
+                    <button class="btn btn-secondary" onclick="openUrl()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            style="width: 16px; height: 16px;">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                        Open in New Tab
+                    </button>
+                </div>
+            </div>
+
+            <div id="error" class="result-box result-error"></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">About Signed URLs</h3>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <div>
+                    <strong>What is a signed URL?</strong>
+                    <p style="margin-top: 8px; color: var(--text-secondary);">
+                        A signed URL provides temporary access to an S3 object. Anyone with the URL can access the
+                        object until the URL expires.
+                    </p>
+                </div>
+            </div>
+
+            <div class="alert alert-warning" style="margin-top: 16px;">
+                <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <div>
+                    <strong>Default Expiration: 1 hour</strong>
+                    <p style="margin-top: 8px; color: var(--text-secondary);">
+                        The generated URL will be valid for 1 hour (3600 seconds).
+                    </p>
+                </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+                <h4 style="color: var(--text-primary); font-size: 14px; margin-bottom: 12px;">Use Cases:</h4>
+                <ul style="color: var(--text-secondary); font-size: 14px; margin-left: 16px;">
+                    <li>Share files temporarily with external users</li>
+                    <li>Download files from private buckets</li>
+                    <li>Embed images or documents in applications</li>
+                    <li>Provide secure, time-limited access</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let generatedUrl = '';
+
+    // Load buckets
+    async function loadBuckets() {
+        const select = document.getElementById('bucket');
+
+        try {
+            const response = await fetch('/api/v1/s3/buckets');
+            const data = await response.json();
+
+            if (data.success && data.data) {
+                data.data.forEach(bucket => {
+                    const option = document.createElement('option');
+                    option.value = bucket.Name;
+                    option.textContent = bucket.Name;
+                    select.appendChild(option);
+                });
+            }
+        } catch (err) {
+            showNotification('Failed to load buckets: ' + err.message, 'error');
+        }
+    }
+
+    // Copy URL to clipboard
+    async function copyUrl() {
+        try {
+            await navigator.clipboard.writeText(generatedUrl);
+            showNotification('URL copied to clipboard!', 'success');
+        } catch (err) {
+            showNotification('Failed to copy URL', 'error');
+        }
+    }
+
+    // Open URL in new tab
+    function openUrl() {
+        if (generatedUrl) {
+            window.open(generatedUrl, '_blank');
+        }
+    }
+
+    // Form submission
+    document.getElementById('signedUrlForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const bucket = document.getElementById('bucket').value;
+        const key = document.getElementById('key').value;
+
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        const error = document.getElementById('error');
+        const submitBtn = document.getElementById('submitBtn');
+
+        loading.classList.add('show');
+        result.style.display = 'none';
+        error.classList.remove('show');
+        submitBtn.disabled = true;
+
+        try {
+            const response = await fetch('/api/v1/s3/signed-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bucket, key })
+            });
+
+            const data = await response.json();
+
+            loading.classList.remove('show');
+            submitBtn.disabled = false;
+
+            if (data.success && data.data && data.data.url) {
+                generatedUrl = data.data.url;
+                document.getElementById('urlDisplay').textContent = generatedUrl;
+                result.style.display = 'block';
+                showNotification('Signed URL generated successfully!', 'success');
+            } else {
+                throw new Error(data.message || 'Failed to generate URL');
+            }
+        } catch (err) {
+            loading.classList.remove('show');
+            submitBtn.disabled = false;
+            error.textContent = 'Error: ' + err.message;
+            error.classList.add('show');
+            showNotification('Failed to generate URL: ' + err.message, 'error');
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', loadBuckets);
+</script>

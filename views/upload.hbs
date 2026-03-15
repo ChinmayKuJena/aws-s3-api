@@ -1,0 +1,237 @@
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Upload File</h3>
+                <p class="card-subtitle">Upload a file to your S3 bucket</p>
+            </div>
+        </div>
+        <div class="card-body">
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label class="form-label">Bucket <span class="required">*</span></label>
+                    <select id="bucket" class="form-select" required>
+                        <option value="">Select a bucket...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Folder (optional)</label>
+                    <input type="text" id="folder" class="form-input" placeholder="path/to/folder">
+                    <p class="form-hint">Leave empty to upload to bucket root</p>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Custom File Name (optional)</label>
+                    <input type="text" id="key" class="form-input" placeholder="custom-filename.ext">
+                    <p class="form-hint">Leave empty to use original filename</p>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">File <span class="required">*</span></label>
+                    <div class="file-upload" id="fileUploadArea">
+                        <input type="file" id="file" required>
+                        <svg class="file-upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p class="file-upload-text">
+                            <strong>Click to upload</strong> or drag and drop
+                        </p>
+                    </div>
+                    <div class="file-name-display" id="fileNameDisplay">
+                        <span id="selectedFileName"></span>
+                        <button type="button" class="btn btn-ghost btn-sm" onclick="clearFile()">×</button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width: 100%;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    Upload File
+                </button>
+            </form>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p class="loading-text">Uploading file...</p>
+            </div>
+            
+            <div id="success" class="result-box result-success"></div>
+            <div id="error" class="result-box result-error"></div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Upload Guidelines</h3>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <div>
+                    <strong>Tips for uploading:</strong>
+                    <ul style="margin-top: 8px; margin-left: 16px; color: var(--text-secondary);">
+                        <li>Select a bucket where you want to upload</li>
+                        <li>Specify a folder path to organize files</li>
+                        <li>Use custom filename to rename the file</li>
+                        <li>Maximum file size depends on your AWS settings</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="alert alert-warning" style="margin-top: 16px;">
+                <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <div>
+                    <strong>Note:</strong> Uploading a file with an existing key will overwrite the existing file.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Load buckets
+    async function loadBuckets() {
+        const select = document.getElementById('bucket');
+        
+        try {
+            const response = await fetch('/api/v1/s3/buckets');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                data.data.forEach(bucket => {
+                    const option = document.createElement('option');
+                    option.value = bucket.Name;
+                    option.textContent = bucket.Name;
+                    select.appendChild(option);
+                });
+                
+                // Check URL params for pre-selected bucket
+                const params = new URLSearchParams(window.location.search);
+                const preselectedBucket = params.get('bucket');
+                if (preselectedBucket) {
+                    select.value = preselectedBucket;
+                }
+            }
+        } catch (err) {
+            showNotification('Failed to load buckets: ' + err.message, 'error');
+        }
+    }
+
+    // File input handling
+    const fileInput = document.getElementById('file');
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const selectedFileName = document.getElementById('selectedFileName');
+
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            selectedFileName.textContent = this.files[0].name + ' (' + formatFileSize(this.files[0].size) + ')';
+            fileNameDisplay.classList.add('show');
+        }
+    });
+
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', () => {
+        fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            selectedFileName.textContent = e.dataTransfer.files[0].name + ' (' + formatFileSize(e.dataTransfer.files[0].size) + ')';
+            fileNameDisplay.classList.add('show');
+        }
+    });
+
+    function clearFile() {
+        fileInput.value = '';
+        fileNameDisplay.classList.remove('show');
+    }
+
+    // Form submission
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const form = e.target;
+        const loading = document.getElementById('loading');
+        const success = document.getElementById('success');
+        const error = document.getElementById('error');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        const file = document.getElementById('file').files[0];
+        if (!file) {
+            showNotification('Please select a file', 'warning');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bucket', document.getElementById('bucket').value);
+        
+        const folder = document.getElementById('folder').value;
+        const key = document.getElementById('key').value;
+        
+        if (folder) formData.append('folder', folder);
+        if (key) formData.append('key', key);
+        
+        loading.classList.add('show');
+        success.classList.remove('show');
+        error.classList.remove('show');
+        submitBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/api/v1/s3/upload', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            loading.classList.remove('show');
+            submitBtn.disabled = false;
+            
+            if (data.success) {
+                success.innerHTML = `
+                    <strong>✓ Upload Successful!</strong><br>
+                    <span style="color: var(--text-secondary);">${data.message}</span>
+                `;
+                success.classList.add('show');
+                form.reset();
+                clearFile();
+                showNotification('File uploaded successfully!', 'success');
+            } else {
+                throw new Error(data.message || 'Upload failed');
+            }
+        } catch (err) {
+            loading.classList.remove('show');
+            submitBtn.disabled = false;
+            error.textContent = 'Error: ' + err.message;
+            error.classList.add('show');
+            showNotification('Upload failed: ' + err.message, 'error');
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', loadBuckets);
+</script>

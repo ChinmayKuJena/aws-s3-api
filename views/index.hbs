@@ -1,0 +1,210 @@
+<div class="grid grid-4">
+    <div class="stat-card" id="stat-buckets">
+        <div class="stat-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+            </svg>
+        </div>
+        <div class="stat-value" id="bucket-count">-</div>
+        <div class="stat-label">Total Buckets</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+        </div>
+        <div class="stat-value" id="object-count">-</div>
+        <div class="stat-label">Objects in Selected Bucket</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon yellow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+        </div>
+        <div class="stat-value">Ready</div>
+        <div class="stat-label">Upload Service</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon red">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </div>
+        <div class="stat-value" id="current-time">--:--</div>
+        <div class="stat-label">Current Time (Local)</div>
+    </div>
+</div>
+
+<div style="margin-top: 32px;">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Quick Actions</h3>
+                <p class="card-subtitle">Common S3 operations at your fingertips</p>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="quick-actions">
+                <a href="/buckets" class="quick-action-card" id="qa-buckets">
+                    <div class="quick-action-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                    </div>
+                    <div class="quick-action-text">
+                        <div class="quick-action-title">List Buckets</div>
+                        <div class="quick-action-desc">View all S3 buckets</div>
+                    </div>
+                </a>
+                
+                <a href="/objects" class="quick-action-card" id="qa-objects">
+                    <div class="quick-action-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                    </div>
+                    <div class="quick-action-text">
+                        <div class="quick-action-title">Browse Objects</div>
+                        <div class="quick-action-desc">View bucket contents</div>
+                    </div>
+                </a>
+                
+                <a href="/upload" class="quick-action-card" id="qa-upload">
+                    <div class="quick-action-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <div class="quick-action-text">
+                        <div class="quick-action-title">Upload File</div>
+                        <div class="quick-action-desc">Upload to any bucket</div>
+                    </div>
+                </a>
+                
+                <a href="/delete" class="quick-action-card" id="qa-delete">
+                    <div class="quick-action-icon" style="background: linear-gradient(135deg, rgba(248, 113, 113, 0.12) 0%, rgba(248, 113, 113, 0.04) 100%); color: var(--danger);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                    </div>
+                    <div class="quick-action-text">
+                        <div class="quick-action-title">Delete Object</div>
+                        <div class="quick-action-desc">Remove from bucket</div>
+                    </div>
+                </a>
+                
+                <a href="/signed-url" class="quick-action-card" id="qa-signed-url">
+                    <div class="quick-action-icon" style="background: linear-gradient(135deg, rgba(96, 165, 250, 0.12) 0%, rgba(96, 165, 250, 0.04) 100%); color: var(--info);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                    </div>
+                    <div class="quick-action-text">
+                        <div class="quick-action-title">Generate Signed URL</div>
+                        <div class="quick-action-desc">Temporary access link</div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="margin-top: 32px;">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Recent Buckets</h3>
+                <p class="card-subtitle">Your S3 buckets at a glance</p>
+            </div>
+            <a href="/buckets" class="btn btn-secondary btn-sm" id="view-all-buckets">View All</a>
+        </div>
+        <div class="card-body">
+            <div class="loading" id="buckets-loading">
+                <div class="spinner"></div>
+                <p class="loading-text">Loading buckets...</p>
+            </div>
+            <div id="buckets-container" class="bucket-grid" style="display: none;"></div>
+            <div id="buckets-error" class="result-box result-error"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Update current time
+    function updateTime() {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const h12 = hours % 12 || 12;
+        document.getElementById('current-time').textContent = `${h12}:${minutes} ${ampm}`;
+    }
+    updateTime();
+    setInterval(updateTime, 1000);
+
+    // Load dashboard data
+    async function loadDashboard() {
+        const loading = document.getElementById('buckets-loading');
+        const container = document.getElementById('buckets-container');
+        const error = document.getElementById('buckets-error');
+        
+        loading.classList.add('show');
+        
+        try {
+            const response = await fetch('/api/v1/s3/buckets');
+            const data = await response.json();
+            
+            loading.classList.remove('show');
+            
+            if (data.success && data.data) {
+                document.getElementById('bucket-count').textContent = data.data.length;
+                
+                container.innerHTML = '';
+                const bucketsToShow = data.data.slice(0, 6);
+                
+                bucketsToShow.forEach((bucket, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'bucket-card';
+                    card.style.animation = `fadeIn 0.4s ease ${index * 0.08}s both`;
+                    card.innerHTML = `
+                        <div class="bucket-card-header">
+                            <div class="bucket-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="bucket-name">${bucket.Name}</div>
+                        <div class="bucket-meta">Created: ${new Date(bucket.CreationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    `;
+                    container.appendChild(card);
+                });
+                
+                container.style.display = 'grid';
+            } else {
+                throw new Error(data.message || 'Failed to load buckets');
+            }
+        } catch (err) {
+            loading.classList.remove('show');
+            document.getElementById('bucket-count').textContent = '0';
+            error.textContent = 'Failed to load buckets: ' + err.message;
+            error.classList.add('show');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>

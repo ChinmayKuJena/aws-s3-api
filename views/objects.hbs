@@ -1,0 +1,262 @@
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Select Bucket</h3>
+            <p class="card-subtitle">Choose a bucket to browse objects</p>
+        </div>
+    </div>
+    <div class="card-body">
+        <form id="searchForm">
+            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: end;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Bucket <span class="required">*</span></label>
+                    <select id="bucket" class="form-select" required>
+                        <option value="">Select a bucket...</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Prefix (optional)</label>
+                    <input type="text" id="prefix" class="form-input" placeholder="folder/subfolder/">
+                </div>
+                <button type="submit" class="btn btn-primary" id="list-objects-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    List Objects
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <div>
+            <h3 class="card-title">Objects</h3>
+            <p class="card-subtitle" id="objects-subtitle">Select a bucket to view objects</p>
+        </div>
+        <span class="badge badge-primary" id="object-count" style="display: none;">0 objects</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p class="loading-text">Loading objects...</p>
+        </div>
+        
+        <div class="table-container" id="table-container" style="display: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Size</th>
+                        <th>Last Modified</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="objects-tbody">
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="empty-state" class="empty-state" style="display: none;">
+            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <h3 class="empty-state-title">No objects found</h3>
+            <p class="empty-state-text">This bucket is empty or no objects match your prefix.</p>
+        </div>
+        
+        <div id="initial-state" class="empty-state">
+            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <h3 class="empty-state-title">Select a bucket</h3>
+            <p class="empty-state-text">Choose a bucket above to browse its contents.</p>
+        </div>
+    </div>
+</div>
+
+<div id="error" class="result-box result-error" style="margin-top: 24px;"></div>
+
+<script>
+    let currentBucket = '';
+
+    // Load buckets for dropdown
+    async function loadBuckets() {
+        const select = document.getElementById('bucket');
+        
+        try {
+            const response = await fetch('/api/v1/s3/buckets');
+            const data = await response.json();
+            
+            if (data.success && data.data) {
+                data.data.forEach(bucket => {
+                    const option = document.createElement('option');
+                    option.value = bucket.Name;
+                    option.textContent = bucket.Name;
+                    select.appendChild(option);
+                });
+                
+                // Check URL params for pre-selected bucket
+                const params = new URLSearchParams(window.location.search);
+                const preselectedBucket = params.get('bucket');
+                if (preselectedBucket) {
+                    select.value = preselectedBucket;
+                    loadObjects();
+                }
+            }
+        } catch (err) {
+            showNotification('Failed to load buckets: ' + err.message, 'error');
+        }
+    }
+
+    // Load objects
+    async function loadObjects() {
+        const bucket = document.getElementById('bucket').value;
+        const prefix = document.getElementById('prefix').value;
+        
+        if (!bucket) {
+            showNotification('Please select a bucket', 'warning');
+            return;
+        }
+        
+        currentBucket = bucket;
+        
+        const loading = document.getElementById('loading');
+        const tableContainer = document.getElementById('table-container');
+        const tbody = document.getElementById('objects-tbody');
+        const emptyState = document.getElementById('empty-state');
+        const initialState = document.getElementById('initial-state');
+        const error = document.getElementById('error');
+        const objectCount = document.getElementById('object-count');
+        const subtitle = document.getElementById('objects-subtitle');
+        
+        loading.classList.add('show');
+        tableContainer.style.display = 'none';
+        emptyState.style.display = 'none';
+        initialState.style.display = 'none';
+        error.classList.remove('show');
+        objectCount.style.display = 'none';
+        
+        try {
+            let url = `/api/v1/s3/objects?bucket=${encodeURIComponent(bucket)}`;
+            if (prefix) url += `&prefix=${encodeURIComponent(prefix)}`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            loading.classList.remove('show');
+            
+            if (data.success && data.data && data.data.length > 0) {
+                tbody.innerHTML = '';
+                subtitle.textContent = `Showing ${data.data.length} objects in ${bucket}`;
+                objectCount.textContent = `${data.data.length} objects`;
+                objectCount.style.display = 'inline-flex';
+                
+                data.data.forEach((obj, index) => {
+                    const tr = document.createElement('tr');
+                    tr.style.animation = `fadeIn 0.3s ease ${index * 0.03}s both`;
+                    const size = formatFileSize(obj.Size || 0);
+                    const date = obj.LastModified ? formatDate(obj.LastModified) : '-';
+                    
+                    tr.innerHTML = `
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2" style="width: 18px; height: 18px; flex-shrink: 0;">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                    <polyline points="14 2 14 8 20 8"/>
+                                </svg>
+                                <span style="word-break: break-all;">${obj.Key}</span>
+                            </div>
+                        </td>
+                        <td><span class="badge badge-primary">${size}</span></td>
+                        <td style="color: var(--text-secondary);">${date}</td>
+                        <td>
+                            <div class="table-actions">
+                                <button class="btn btn-secondary btn-sm" onclick="generateSignedUrl('${bucket}', '${obj.Key}')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                    </svg>
+                                    URL
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteObject('${bucket}', '${obj.Key}')">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+                                        <polyline points="3 6 5 6 21 6"/>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                
+                tableContainer.style.display = 'block';
+            } else if (data.success) {
+                subtitle.textContent = `No objects in ${bucket}`;
+                emptyState.style.display = 'block';
+            } else {
+                throw new Error(data.message || 'Failed to load objects');
+            }
+        } catch (err) {
+            loading.classList.remove('show');
+            error.textContent = 'Error: ' + err.message;
+            error.classList.add('show');
+        }
+    }
+
+    // Generate signed URL
+    async function generateSignedUrl(bucket, key) {
+        try {
+            const response = await fetch('/api/v1/s3/signed-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bucket, key })
+            });
+            const data = await response.json();
+            
+            if (data.success && data.data && data.data.url) {
+                await navigator.clipboard.writeText(data.data.url);
+                showNotification('Signed URL copied to clipboard!', 'success');
+            } else {
+                throw new Error(data.message || 'Failed to generate URL');
+            }
+        } catch (err) {
+            showNotification('Error: ' + err.message, 'error');
+        }
+    }
+
+    // Delete object
+    async function deleteObject(bucket, key) {
+        if (!confirm(`Are you sure you want to delete "${key}"?`)) return;
+        
+        try {
+            const response = await fetch('/api/v1/s3/object', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bucket, key })
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                showNotification('Object deleted successfully!', 'success');
+                loadObjects();
+            } else {
+                throw new Error(data.message || 'Failed to delete object');
+            }
+        } catch (err) {
+            showNotification('Error: ' + err.message, 'error');
+        }
+    }
+
+    document.getElementById('searchForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        loadObjects();
+    });
+
+    document.addEventListener('DOMContentLoaded', loadBuckets);
+</script>
